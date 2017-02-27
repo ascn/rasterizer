@@ -3,14 +3,27 @@
 #include <vector>
 
 #include "tiny_obj_loader.h"
+#include "camera.h"
 #include "vec4.h"
 #include "mat4.h"
+#include "ppm.h"
 
 using namespace std;
 
+typedef struct {
+    vec4 vert[3];
+    vec4 pixel_coord[3];
+    bool is_renderable = true;
+} face_t;
+
 int main(int argc, char *argv[]) {
-    cout << "argc: " << argc << endl;
-    cout << argv[1] << ", " << argv[2] << ", " << argv[3] << endl;
+
+    if (argc < 6) {
+        fprintf(stderr, "usage: rasterize OBJ CAMERA WIDTH HEIGHT OUTPUT\n");
+    }
+
+    int w = std::stoi(argv[3]);
+    int h = std::stoi(argv[4]);
 
     // LOAD OBJ
     std::vector<tinyobj::shape_t> shapes;
@@ -22,24 +35,62 @@ int main(int argc, char *argv[]) {
     }
 
     // READ CAMERA.TXT
-    std::ifstream camera_file(argv[2]);
-    if (!camera_file.is_open()) {
-    	fprintf(stderr, "error: cannot open file %s\n", argv[2]);
-    	exit(1);
+    camera_mat_t camera = load_camera(argv[2]);
+    cout << camera.proj << endl;
+    cout << camera.view << endl;
+
+    /**
+    For each triangle, multiply each vertex coordinate by the view matrix, then the projection matrix, divide through by w, and convert the x- and y- coordinates to pixel coordinates using the formula from the slides.
+
+    If all three z-coordinates are less than 0 or all three are greater than 1, the triangle is completely in front of the near plane or complete behind the far plane. So skip it because it isn't visible.
+
+    Compute the 2D bounding box of the triangle. If it doesn't overlap the image at all, skip the triangle because it isn't visible.
+
+    For every row of the image, calculate the x-coordinates where the row crosses each edge of the triangle. Figure out which two edges it actually crosses.
+
+    Using the formula on the lecture slides, pixels are actually treated as small squares, just like they really are. The top-left pixel in the image is a square that stretches from (0, 0) to (1, 1). You should use scan-lines that cross through the middle of each pixel, so the y-values of your scanlines should be 0.5, 1.5, 2.5, ..., height - 0.5.
+
+    Be careful of special cases, including vertical edges (could cause a divide-by-zero if you're not careful), horizontal edges (the scan line could run along the entire edge instead of just intersecting it), and situations where the scan line intersects a vertex (i.e. it intersects two triangle edges at exactly the same place). You do not have to deal with degenerate triangle (e.g. triangles where two vertices are actually the same point, or where all three vertices lies along a straight line).
+    Once you've calculated the x-coordinates where the current scan line enters and exits the triangle, color every pixel that is at least partially covered by the triangle using its diffuse color (specified in the material struct).
+
+    */
+
+    std::vector<face_t> faces;
+    for (const auto &s : shapes) {
+        tinyobj::mesh_t mesh = s.mesh;
+        for (int i = 0; i < mesh.indices.size(); i += 3) {
+            face_t tmp;
+            tmp.vert[0] = vec4(mesh.positions[mesh.indices[i] * 3],
+                               mesh.positions[mesh.indices[i] * 3 + 1],
+                               mesh.positions[mesh.indices[i] * 3 + 2], 1);
+            tmp.vert[1] = vec4(mesh.positions[mesh.indices[i + 1] * 3],
+                               mesh.positions[mesh.indices[i + 1] * 3 + 1],
+                               mesh.positions[mesh.indices[i + 1] * 3 + 2], 1);
+            tmp.vert[2] = vec4(mesh.positions[mesh.indices[i + 2] * 3],
+                               mesh.positions[mesh.indices[i + 2] * 3 + 1],
+                               mesh.positions[mesh.indices[i + 2] * 3 + 2], 1);
+            faces.push_back(tmp);
+        }
     }
-    float left, right, top, bottom, near, far;
-    camera_file >> left;
-    camera_file >> right;
-    camera_file >> top;
-    camera_file >> bottom;
-    camera_file >> near;
-    camera_file >> far;
 
-    cout << left << ", " << right << ", " << top << ", " << bottom << endl;
-    cout << near << ", " << far << endl;
-
-    mat4 proj_mat = mat4::proj(left, right, top, bottom, near, far);
-    cout << proj_mat << endl;
+    for (auto &f : faces) {
+        f.vert[0] = f.vert[0] * camera.view * camera.proj;
+        f.vert[1] = f.vert[1] * camera.view * camera.proj;
+        f.vert[2] = f.vert[2] * camera.view * camera.proj;
+        f.vert[0] /= f.vert[0][3];
+        f.vert[1] /= f.vert[1][3];
+        f.vert[2] /= f.vert[2][3];
+        f.pixel_coord[0] = vec4((f.vert[0][0] + 1) * (w / 2),
+                                (1 - f.vert[0][1]) * (h / 2), 0, 0);
+        f.pixel_coord[1] = vec4((f.vert[1][0] + 1) * (w / 2),
+                                (1 - f.vert[1][1]) * (h / 2), 0, 0);
+        f.pixel_coord[2] = vec4((f.vert[2][0] + 1) * (w / 2),
+                                (1 - f.vert[2][1]) * (h / 2), 0, 0);
+        if ((f.vert[0][2] < 0 && f.vert[1][2] < 0 && f.vert[2][2] < 0) ||
+                (f.vert[0][2] > 1 && f.vert[1][2] > 1 && f.vert[2][2] > 1)) {
+            f.is_renderable = false;
+        }
+    }
 
     return 0;
 }

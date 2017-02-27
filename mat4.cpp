@@ -100,6 +100,10 @@ mat4 mat4::scale(float x, float y, float z) {
 
 mat4 mat4::proj(float l, float r, float t, float b, float n, float f) {
 	mat4 ret;
+	ret[0][0] = (2 * n) / (r - l);
+	ret[1][1] = (2 * n) / (t - b);
+	ret[2][0] = (r + l) / (r - l);
+	ret[2][1] = (t + b) / (t - b);
 	ret[2][2] = f / (f - n);
 	ret[2][3] = 1;
 	ret[3][2] = (-f * n) / (f - n);
@@ -271,14 +275,14 @@ vec4 operator*(const vec4 &v, const mat4 &m) {
 }
 
 std::ostream &operator<<(std::ostream &o, const mat4 &m) {
-	o << std::right << std::setw(7) << std::setprecision(3) <<
-	m[0][0] << std::setw(7) << m[1][0] << std::setw(7) << m[2][0] <<
-	std::setw(7) << m[3][0] << '\n' <<
-	std::setw(7) << m[0][1] << std::setw(7) << m[1][1] <<
-	std::setw(7) << m[2][1] << std::setw(7) << m[3][1] << '\n' <<
-	std::setw(7) << m[0][2] << std::setw(7) << m[1][2] <<
-	std::setw(7) << m[2][2] << std::setw(7) << m[3][2] << '\n' <<
-    std::setw(7) << m[0][3] << std::setw(7) << m[1][3] <<
-    std::setw(7) << m[2][3] << std::setw(7) << m[3][3] << '\n';
+	o << std::right << std::setw(10) << std::setprecision(3) <<
+	m[0][0] << std::setw(10) << m[1][0] << std::setw(10) << m[2][0] <<
+	std::setw(10) << m[3][0] << '\n' <<
+	std::setw(10) << m[0][1] << std::setw(10) << m[1][1] <<
+	std::setw(10) << m[2][1] << std::setw(10) << m[3][1] << '\n' <<
+	std::setw(10) << m[0][2] << std::setw(10) << m[1][2] <<
+	std::setw(10) << m[2][2] << std::setw(10) << m[3][2] << '\n' <<
+    std::setw(10) << m[0][3] << std::setw(10) << m[1][3] <<
+    std::setw(10) << m[2][3] << std::setw(10) << m[3][3] << '\n';
     return o;
 }
