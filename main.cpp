@@ -30,6 +30,14 @@ int main(int argc, char *argv[]) {
     int w = std::stoi(argv[3]);
     int h = std::stoi(argv[4]);
 
+    // Initialize image
+    img_t *out = img_init(w, h);
+    for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+            (*out)(i, j) = { 0, 255, 0 };
+        }
+    }
+
     // LOAD OBJ
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -63,7 +71,7 @@ int main(int argc, char *argv[]) {
     std::vector<face_t> faces;
     for (const auto &s : shapes) {
         tinyobj::mesh_t mesh = s.mesh;
-        for (int i = 0; i < mesh.indices.size(); i += 3) {
+        for (size_t i = 0; i < mesh.indices.size(); i += 3) {
             face_t tmp;
             tmp.vert[0] = vec4(mesh.positions[mesh.indices[i] * 3],
                                mesh.positions[mesh.indices[i] * 3 + 1],
@@ -104,7 +112,7 @@ int main(int argc, char *argv[]) {
                                max(f.pixel_coord[1][0], f.pixel_coord[2][0]));
         f.bounding_box[1][1] = max(f.pixel_coord[0][1],
                                max(f.pixel_coord[1][1], f.pixel_coord[2][1]));
-        if (f.bouding_box[0][0] > w || f.bouding_box[0][1] > h ||
+        if (f.bounding_box[0][0] > w || f.bounding_box[0][1] > h ||
                 f.bounding_box[1][0] < 0 || f.bounding_box[1][1] < 0) {
             f.is_renderable = false;
         }
@@ -114,9 +122,15 @@ int main(int argc, char *argv[]) {
     for (float y = 0.5; y < h; ++y) {
         // Determine which faces intersect the row
         for (auto &f : faces) {
-
+            if (f.bounding_box[0][1] < y && y < f.bounding_box[1][1]) {
+                // Row will intersect the triangle
+                // Get beginning and ending intersection points
+            }
         }
     }
+
+    // Write image
+    write_ppm(out, argv[5]);
 
     return 0;
 }

@@ -7,9 +7,9 @@ SOURCES += \
     tiny_obj_loader.cc \
     mat4.cpp \
     vec4.cpp \
-    ppm.c \
     main.cpp \
-    camera.cpp
+    camera.cpp \
+    ppm.cpp
 
 DISTFILES += \
     cube.obj \

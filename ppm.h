@@ -8,6 +8,8 @@ typedef struct pixel_t {
 typedef struct img_t {
     pixel_t *data;
     int w, h;
+    pixel_t operator()(int, int) const;
+    pixel_t &operator()(int, int);
 } img_t;
 
 /*

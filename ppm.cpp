@@ -1,7 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 #include "ppm.h"
+
+pixel_t img_t::operator()(int i, int j) const {
+    return (this->data)[i * this->w + j];
+}
+
+pixel_t &img_t::operator()(int i, int j) {
+    return (this->data)[i * this->w + j];
+}
 
 img_t *read_ppm(const char *fname) {
     FILE *img_file = NULL;
