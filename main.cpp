@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 #include "tiny_obj_loader.h"
 #include "camera.h"
@@ -13,6 +14,10 @@ using namespace std;
 typedef struct {
     vec4 vert[3];
     vec4 pixel_coord[3];
+    vec4 bounding_box[2]; // [0][0] = min x
+                          // [0][1] = min y
+                          // [1][0] = max x
+                          // [1][1] = max y
     bool is_renderable = true;
 } face_t;
 
@@ -80,6 +85,7 @@ int main(int argc, char *argv[]) {
         f.vert[0] /= f.vert[0][3];
         f.vert[1] /= f.vert[1][3];
         f.vert[2] /= f.vert[2][3];
+        // [x, y, 0, 0]
         f.pixel_coord[0] = vec4((f.vert[0][0] + 1) * (w / 2),
                                 (1 - f.vert[0][1]) * (h / 2), 0, 0);
         f.pixel_coord[1] = vec4((f.vert[1][0] + 1) * (w / 2),
@@ -89,6 +95,26 @@ int main(int argc, char *argv[]) {
         if ((f.vert[0][2] < 0 && f.vert[1][2] < 0 && f.vert[2][2] < 0) ||
                 (f.vert[0][2] > 1 && f.vert[1][2] > 1 && f.vert[2][2] > 1)) {
             f.is_renderable = false;
+        }
+        f.bounding_box[0][0] = min(f.pixel_coord[0][0],
+                               min(f.pixel_coord[1][0], f.pixel_coord[2][0]));
+        f.bounding_box[0][1] = min(f.pixel_coord[0][1],
+                               min(f.pixel_coord[1][1], f.pixel_coord[2][1]));
+        f.bounding_box[1][0] = max(f.pixel_coord[0][0],
+                               max(f.pixel_coord[1][0], f.pixel_coord[2][0]));
+        f.bounding_box[1][1] = max(f.pixel_coord[0][1],
+                               max(f.pixel_coord[1][1], f.pixel_coord[2][1]));
+        if (f.bouding_box[0][0] > w || f.bouding_box[0][1] > h ||
+                f.bounding_box[1][0] < 0 || f.bounding_box[1][1] < 0) {
+            f.is_renderable = false;
+        }
+    }
+
+    // For each row in the output image
+    for (float y = 0.5; y < h; ++y) {
+        // Determine which faces intersect the row
+        for (auto &f : faces) {
+
         }
     }
 
