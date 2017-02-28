@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #include "tiny_obj_loader.h"
 #include "camera.h"
@@ -10,6 +11,8 @@
 #include "ppm.h"
 
 using namespace std;
+
+bool within(float y, float c1, float c2);
 
 typedef struct {
     vec4 vert[3];
@@ -32,41 +35,45 @@ int main(int argc, char *argv[]) {
 
     // Initialize image
     img_t *out = img_init(w, h);
-    for (int i = 0; i < h; ++i) {
-        for (int j = 0; j < w; ++j) {
-            (*out)(i, j) = { 0, 255, 0 };
-        }
-    }
+
+    // get mtl filename
+    std::string obj_name(argv[1]);
+    std::string mtl_name = obj_name.substr(0, obj_name.find(".obj"));
+    mtl_name += ".mtl";
 
     // LOAD OBJ
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
-    std::string err = tinyobj::LoadObj(shapes, materials, argv[1]);
+    std::string err = tinyobj::LoadObj(shapes, materials, argv[1], mtl_name.c_str());
     if ("" != err) {
     	cout << "error: " << err << endl;
     	exit(1);
     }
 
+    shapes.clear();
+    materials.clear();
+
+    tinyobj::shape_t tmp;
+    tinyobj::mesh_t tmp_mesh;
+    tmp_mesh.positions.push_back(-.5);
+    tmp_mesh.positions.push_back(-.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.positions.push_back(-.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.positions.push_back(.5);
+    tmp_mesh.indices.push_back(0);
+    tmp_mesh.indices.push_back(1);
+    tmp_mesh.indices.push_back(2);
+    tmp.mesh = tmp_mesh;
+    shapes.push_back(tmp);
+
     // READ CAMERA.TXT
     camera_mat_t camera = load_camera(argv[2]);
     cout << camera.proj << endl;
     cout << camera.view << endl;
-
-    /**
-    For each triangle, multiply each vertex coordinate by the view matrix, then the projection matrix, divide through by w, and convert the x- and y- coordinates to pixel coordinates using the formula from the slides.
-
-    If all three z-coordinates are less than 0 or all three are greater than 1, the triangle is completely in front of the near plane or complete behind the far plane. So skip it because it isn't visible.
-
-    Compute the 2D bounding box of the triangle. If it doesn't overlap the image at all, skip the triangle because it isn't visible.
-
-    For every row of the image, calculate the x-coordinates where the row crosses each edge of the triangle. Figure out which two edges it actually crosses.
-
-    Using the formula on the lecture slides, pixels are actually treated as small squares, just like they really are. The top-left pixel in the image is a square that stretches from (0, 0) to (1, 1). You should use scan-lines that cross through the middle of each pixel, so the y-values of your scanlines should be 0.5, 1.5, 2.5, ..., height - 0.5.
-
-    Be careful of special cases, including vertical edges (could cause a divide-by-zero if you're not careful), horizontal edges (the scan line could run along the entire edge instead of just intersecting it), and situations where the scan line intersects a vertex (i.e. it intersects two triangle edges at exactly the same place). You do not have to deal with degenerate triangle (e.g. triangles where two vertices are actually the same point, or where all three vertices lies along a straight line).
-    Once you've calculated the x-coordinates where the current scan line enters and exits the triangle, color every pixel that is at least partially covered by the triangle using its diffuse color (specified in the material struct).
-
-    */
 
     std::vector<face_t> faces;
     for (const auto &s : shapes) {
@@ -121,10 +128,69 @@ int main(int argc, char *argv[]) {
     // For each row in the output image
     for (float y = 0.5; y < h; ++y) {
         // Determine which faces intersect the row
+        std::vector<float> intersections;
         for (auto &f : faces) {
             if (f.bounding_box[0][1] < y && y < f.bounding_box[1][1]) {
                 // Row will intersect the triangle
                 // Get beginning and ending intersection points
+
+                // Determine if intersects iwth pixel_coord[0], pixel_coord[1]
+                std::vector<float> intersects; // contains two x coordinates where the current face intersects with the row
+
+                if (within(y, f.pixel_coord[0][1], f.pixel_coord[1][1])) {
+                    // intersects with pixel[0], pixel[1]
+                    if (f.pixel_coord[0][0] == f.pixel_coord[1][0]) {
+                        // vertical line
+                        intersects.push_back(f.pixel_coord[0][0]);
+                    } else if (f.pixel_coord[0][1] == f.pixel_coord[1][1]) {
+                        // horizontal line
+                        intersects.push_back(f.pixel_coord[0][0]);
+                        intersects.push_back(f.pixel_coord[1][0]);
+                    } else {
+                        // regular case, intersection testing
+                        float m = (f.pixel_coord[1][1] - f.pixel_coord[0][1]) /
+                                  (f.pixel_coord[1][0] - f.pixel_coord[0][0]);
+                        // y = m * X - m * pixel_coord[0][0] + pixel_coord[0][1]
+                        // (y + (m * pixel_coord[0][0]) - pixel_coord[0][1]) / m = Xto
+                        intersects.push_back((y + (m * f.pixel_coord[0][0]) -
+                                                f.pixel_coord[0][1]) / m);
+                    }
+                }
+
+                if (within(y, f.pixel_coord[1][1], f.pixel_coord[2][1])) {
+                    if (f.pixel_coord[1][0] == f.pixel_coord[2][0]) {
+                        intersects.push_back(f.pixel_coord[1][0]);
+                    } else if (f.pixel_coord[1][1] == f.pixel_coord[2][1]) {
+                        intersects.push_back(f.pixel_coord[1][0]);
+                        intersects.push_back(f.pixel_coord[2][0]);
+                    } else {
+                        float m = (f.pixel_coord[2][1] - f.pixel_coord[1][1]) /
+                                  (f.pixel_coord[2][0] - f.pixel_coord[1][0]);
+                        intersects.push_back((y + (m * f.pixel_coord[1][0]) -
+                                                f.pixel_coord[1][1]) / m);
+                    }
+                }
+
+                if (within(y, f.pixel_coord[2][1], f.pixel_coord[0][1])) {
+                    if (f.pixel_coord[2][0] == f.pixel_coord[0][0]) {
+                        intersects.push_back(f.pixel_coord[2][0]);
+                    } else if (f.pixel_coord[2][1] == f.pixel_coord[0][1]) {
+                        intersects.push_back(f.pixel_coord[0][0]);
+                        intersects.push_back(f.pixel_coord[2][0]);
+                    } else {
+                        float m = (f.pixel_coord[0][1] - f.pixel_coord[2][1]) /
+                                  (f.pixel_coord[0][0] - f.pixel_coord[2][0]);
+                        intersects.push_back((y + (m * f.pixel_coord[2][0]) -
+                                                f.pixel_coord[2][1]) / m);
+                    }
+                }
+
+                std::sort(intersects.begin(), intersects.end());
+                for (int i = intersects[0]; i < intersects[1]; ++i) {
+                    if (i < 0 || i > w) { continue; }
+                    (*out)(y, i) = { 255, 0, 0 };
+                }
+
             }
         }
     }
@@ -133,4 +199,8 @@ int main(int argc, char *argv[]) {
     write_ppm(out, argv[5]);
 
     return 0;
+}
+
+bool within(float y, float c1, float c2) {
+    return (c1 <= y && y <= c2) || (c2 <= y && y <= c1);
 }
