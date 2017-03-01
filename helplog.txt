@@ -1,2 +1,5 @@
 2.21.17, 00:58
 https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glFrustum.xml
+
+https://www.wikiwand.com/en/Barycentric_coordinate_system
+https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation
