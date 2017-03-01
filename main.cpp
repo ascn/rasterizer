@@ -238,12 +238,12 @@ int main(int argc, char *argv[]) {
 //                    float l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
 //                    float l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
 //                    float l2 = 1 - l1 - l2;
-//                    float pix_depth = 1 / (1 / (f.vert[0][2] * l0) + 1 / (f.vert[1][2] * l1) + 1 / (f.vert[2][2] * l2));
-//                    if (pix_depth < z_buf[y * h + i] && pix_depth > 0) {
+//                    float pix_depth = 1 / ((1 / (f.vert[0][2] * l0)) + (1 / (f.vert[1][2] * l1)) + (1 / (f.vert[2][2] * l2)));
+//                    if (pix_depth < z_buf[y * h + i]) {
 //                        (*out)(y, i) = f.color;
-//                        z_buf[y * h + i] = pix_depth;
+//                        z_buf[y * w + i] = pix_depth;
 //                    }
-                     (*out)(y, i) = f.color;
+                    (*out)(y, i) = f.color;
                 }
 
             }
