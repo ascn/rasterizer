@@ -36,13 +36,13 @@ camera_mat_t load_camera(char *file) {
     camera_file >> c_z;
     float f_x = c_x - eye_x;
     float f_y = c_y - eye_y;
-    float f_z = c_z = eye_z;
+    float f_z = c_z - eye_z;
     camera_file >> u_x;
     camera_file >> u_y;
     camera_file >> u_z;
-    vec4 forward = vec4(f_x, f_y, f_z, 1);
+    vec4 forward = vec4(f_x, f_y, f_z, 0);
     forward.norm();
-    vec4 up = vec4(u_x, u_y, u_z, 1);
+    vec4 up = vec4(u_x, u_y, u_z, 0);
     up.norm();
     vec4 x_axis = cross(forward, up);
 

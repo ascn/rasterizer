@@ -107,6 +107,7 @@ mat4 mat4::proj(float l, float r, float t, float b, float n, float f) {
 	ret[2][2] = f / (f - n);
 	ret[2][3] = 1;
 	ret[3][2] = (-f * n) / (f - n);
+    ret[3][3] = 0;
 	return ret;
 }
 

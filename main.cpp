@@ -22,9 +22,12 @@ typedef struct {
                           // [1][0] = max x
                           // [1][1] = max y
     bool is_renderable = true;
+    pixel_t color;
 } face_t;
 
 int main(int argc, char *argv[]) {
+
+    const float EPSILON = 0.0001;
 
     if (argc < 6) {
         fprintf(stderr, "usage: rasterize OBJ CAMERA WIDTH HEIGHT OUTPUT\n");
@@ -35,6 +38,12 @@ int main(int argc, char *argv[]) {
 
     // Initialize image
     img_t *out = img_init(w, h);
+
+    // Initialize z-buffer
+    std::vector<float> z_buf;
+    for (int i = 0; i < w * h; ++i) {
+        z_buf.push_back(2);
+    }
 
     // get mtl filename
     std::string obj_name(argv[1]);
@@ -50,25 +59,24 @@ int main(int argc, char *argv[]) {
     	exit(1);
     }
 
-    shapes.clear();
-    materials.clear();
-
-    tinyobj::shape_t tmp;
-    tinyobj::mesh_t tmp_mesh;
-    tmp_mesh.positions.push_back(-.5);
-    tmp_mesh.positions.push_back(-.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.positions.push_back(-.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.positions.push_back(.5);
-    tmp_mesh.indices.push_back(0);
-    tmp_mesh.indices.push_back(1);
-    tmp_mesh.indices.push_back(2);
-    tmp.mesh = tmp_mesh;
-    shapes.push_back(tmp);
+//    shapes.clear();
+//    materials.clear();
+//    tinyobj::shape_t tmp;
+//    tinyobj::mesh_t tmp_mesh;
+//    tmp_mesh.positions.push_back(-.5);
+//    tmp_mesh.positions.push_back(-.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.positions.push_back(-.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.positions.push_back(.5);
+//    tmp_mesh.indices.push_back(0);
+//    tmp_mesh.indices.push_back(1);
+//    tmp_mesh.indices.push_back(2);
+//    tmp.mesh = tmp_mesh;
+//    shapes.push_back(tmp);
 
     // READ CAMERA.TXT
     camera_mat_t camera = load_camera(argv[2]);
@@ -94,9 +102,9 @@ int main(int argc, char *argv[]) {
     }
 
     for (auto &f : faces) {
-        f.vert[0] = f.vert[0] * camera.view * camera.proj;
-        f.vert[1] = f.vert[1] * camera.view * camera.proj;
-        f.vert[2] = f.vert[2] * camera.view * camera.proj;
+        f.vert[0] = camera.proj * camera.view * f.vert[0];
+        f.vert[1] = camera.proj * camera.view * f.vert[1];
+        f.vert[2] = camera.proj * camera.view * f.vert[2];
         f.vert[0] /= f.vert[0][3];
         f.vert[1] /= f.vert[1][3];
         f.vert[2] /= f.vert[2][3];
@@ -111,6 +119,12 @@ int main(int argc, char *argv[]) {
                 (f.vert[0][2] > 1 && f.vert[1][2] > 1 && f.vert[2][2] > 1)) {
             f.is_renderable = false;
         }
+        if (f.pixel_coord[0][0] > f.pixel_coord[1][0]) {
+            std::swap(f.pixel_coord[0], f.pixel_coord[1]);
+        }
+        if (f.pixel_coord[1][0] > f.pixel_coord[2][0]) {
+            std::swap(f.pixel_coord[1], f.pixel_coord[2]);
+        }
         f.bounding_box[0][0] = min(f.pixel_coord[0][0],
                                min(f.pixel_coord[1][0], f.pixel_coord[2][0]));
         f.bounding_box[0][1] = min(f.pixel_coord[0][1],
@@ -123,6 +137,7 @@ int main(int argc, char *argv[]) {
                 f.bounding_box[1][0] < 0 || f.bounding_box[1][1] < 0) {
             f.is_renderable = false;
         }
+        f.color = { (float) std::rand() / RAND_MAX * 255, (float) std::rand() / RAND_MAX * 255, (float) std::rand() / RAND_MAX * 255 };
     }
 
     // For each row in the output image
@@ -130,20 +145,23 @@ int main(int argc, char *argv[]) {
         // Determine which faces intersect the row
         std::vector<float> intersections;
         for (auto &f : faces) {
+            if (!f.is_renderable) { continue; }
             if (f.bounding_box[0][1] < y && y < f.bounding_box[1][1]) {
                 // Row will intersect the triangle
                 // Get beginning and ending intersection points
 
-                // Determine if intersects iwth pixel_coord[0], pixel_coord[1]
+                // Determine if intersects with pixel_coord[0], pixel_coord[1]
                 std::vector<float> intersects; // contains two x coordinates where the current face intersects with the row
-
+                bool horizontal = false;
                 if (within(y, f.pixel_coord[0][1], f.pixel_coord[1][1])) {
                     // intersects with pixel[0], pixel[1]
-                    if (f.pixel_coord[0][0] == f.pixel_coord[1][0]) {
+                    // coordinates already sorted by increasing x
+                    if ((int) f.pixel_coord[0][0] == (int) f.pixel_coord[1][0]) {
                         // vertical line
                         intersects.push_back(f.pixel_coord[0][0]);
-                    } else if (f.pixel_coord[0][1] == f.pixel_coord[1][1]) {
+                    } else if ((int) f.pixel_coord[0][1] == (int) f.pixel_coord[1][1]) {
                         // horizontal line
+                        horizontal = true;
                         intersects.push_back(f.pixel_coord[0][0]);
                         intersects.push_back(f.pixel_coord[1][0]);
                     } else {
@@ -151,16 +169,17 @@ int main(int argc, char *argv[]) {
                         float m = (f.pixel_coord[1][1] - f.pixel_coord[0][1]) /
                                   (f.pixel_coord[1][0] - f.pixel_coord[0][0]);
                         // y = m * X - m * pixel_coord[0][0] + pixel_coord[0][1]
-                        // (y + (m * pixel_coord[0][0]) - pixel_coord[0][1]) / m = Xto
+                        // (y + (m * pixel_coord[0][0]) - pixel_coord[0][1]) / m = X
                         intersects.push_back((y + (m * f.pixel_coord[0][0]) -
                                                 f.pixel_coord[0][1]) / m);
                     }
                 }
 
                 if (within(y, f.pixel_coord[1][1], f.pixel_coord[2][1])) {
-                    if (f.pixel_coord[1][0] == f.pixel_coord[2][0]) {
+                    if ((int) f.pixel_coord[1][0] == (int) f.pixel_coord[2][0]) {
                         intersects.push_back(f.pixel_coord[1][0]);
-                    } else if (f.pixel_coord[1][1] == f.pixel_coord[2][1]) {
+                    } else if ((int) f.pixel_coord[1][1] == (int) f.pixel_coord[2][1]) {
+                        horizontal = true;
                         intersects.push_back(f.pixel_coord[1][0]);
                         intersects.push_back(f.pixel_coord[2][0]);
                     } else {
@@ -171,24 +190,60 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                if (within(y, f.pixel_coord[2][1], f.pixel_coord[0][1])) {
-                    if (f.pixel_coord[2][0] == f.pixel_coord[0][0]) {
+                if (within(y, f.pixel_coord[0][1], f.pixel_coord[2][1])) {
+                    if ((int) f.pixel_coord[0][0] == (int) f.pixel_coord[2][0]) {
                         intersects.push_back(f.pixel_coord[2][0]);
-                    } else if (f.pixel_coord[2][1] == f.pixel_coord[0][1]) {
+                    } else if ((int) f.pixel_coord[0][1] == (int) f.pixel_coord[2][1]) {
+                        horizontal = true;
                         intersects.push_back(f.pixel_coord[0][0]);
                         intersects.push_back(f.pixel_coord[2][0]);
                     } else {
-                        float m = (f.pixel_coord[0][1] - f.pixel_coord[2][1]) /
-                                  (f.pixel_coord[0][0] - f.pixel_coord[2][0]);
-                        intersects.push_back((y + (m * f.pixel_coord[2][0]) -
-                                                f.pixel_coord[2][1]) / m);
+                        float m = (f.pixel_coord[2][1] - f.pixel_coord[0][1]) /
+                                  (f.pixel_coord[2][0] - f.pixel_coord[0][0]);
+                        intersects.push_back((y + (m * f.pixel_coord[0][0]) -
+                                                f.pixel_coord[0][1]) / m);
                     }
                 }
 
                 std::sort(intersects.begin(), intersects.end());
-                for (int i = intersects[0]; i < intersects[1]; ++i) {
+                // interpolate depth for intersects[0] and intersects[1]
+
+                /* Render wireframe */
+
+//                if (horizontal) {
+//                    for (int i = intersects[0]; i <= intersects[1]; ++i) {
+//                        (*out)(y, i) = f.color;
+//                    }
+//                }
+
+//                if (intersects[0] >= 0 && intersects[0] < w) {
+//                    (*out)(y, intersects[0]) = f.color;
+//                }
+//                if (intersects[1] >=0 && intersects[1] < w) {
+//                    (*out)(y, intersects[1]) = f.color;
+//                }
+
+                // y * h + i
+                float x1 = f.pixel_coord[0][0];
+                float x2 = f.pixel_coord[1][0];
+                float x3 = f.pixel_coord[2][0];
+                float y1 = f.pixel_coord[0][1];
+                float y2 = f.pixel_coord[1][1];
+                float y3 = f.pixel_coord[2][1];
+                for (int i = intersects[0]; i <= intersects[1]; ++i) {
                     if (i < 0 || i > w) { continue; }
-                    (*out)(y, i) = { 255, 0, 0 };
+                    // Get barycentric coordinate of pixel
+
+//                    float x = i;
+//                    float l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+//                    float l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+//                    float l2 = 1 - l1 - l2;
+//                    float pix_depth = 1 / (1 / (f.vert[0][2] * l0) + 1 / (f.vert[1][2] * l1) + 1 / (f.vert[2][2] * l2));
+//                    if (pix_depth < z_buf[y * h + i] && pix_depth > 0) {
+//                        (*out)(y, i) = f.color;
+//                        z_buf[y * h + i] = pix_depth;
+//                    }
+                     (*out)(y, i) = f.color;
                 }
 
             }
