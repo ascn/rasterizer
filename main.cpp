@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     img_t *out = img_init(w, h);
 
     // Initialize z-buffer
-    std::vector<float> z_buf;
+    std::vector<double> z_buf;
     for (int i = 0; i < w * h; ++i) {
         z_buf.push_back(2);
     }
@@ -224,26 +224,28 @@ int main(int argc, char *argv[]) {
 //                }
 
                 // y * h + i
-                float x1 = f.pixel_coord[0][0];
-                float x2 = f.pixel_coord[1][0];
-                float x3 = f.pixel_coord[2][0];
-                float y1 = f.pixel_coord[0][1];
-                float y2 = f.pixel_coord[1][1];
-                float y3 = f.pixel_coord[2][1];
+                double x1 = f.pixel_coord[0][0];
+                double x2 = f.pixel_coord[1][0];
+                double x3 = f.pixel_coord[2][0];
+                double y1 = f.pixel_coord[0][1];
+                double y2 = f.pixel_coord[1][1];
+                double y3 = f.pixel_coord[2][1];
                 for (int i = intersects[0]; i <= intersects[1]; ++i) {
                     if (i < 0 || i > w) { continue; }
                     // Get barycentric coordinate of pixel
-
-//                    float x = i;
-//                    float l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
-//                    float l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
-//                    float l2 = 1 - l1 - l2;
-//                    float pix_depth = 1 / ((1 / (f.vert[0][2] * l0)) + (1 / (f.vert[1][2] * l1)) + (1 / (f.vert[2][2] * l2)));
-//                    if (pix_depth < z_buf[y * h + i]) {
-//                        (*out)(y, i) = f.color;
-//                        z_buf[y * w + i] = pix_depth;
-//                    }
-                    (*out)(y, i) = f.color;
+                    if (true) {
+                        double x = i;
+                        double l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+                        double l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+                        double l2 = 1 - l1 - l2;
+                        double pix_depth = 1 / ((1 / (f.vert[0][2] * l0)) + (1 / (f.vert[1][2] * l1)) + (1 / (f.vert[2][2] * l2)));
+                        if (pix_depth <= z_buf[y * w + i]) {
+                            (*out)(y, i) = f.color;
+                            z_buf[y * w + i] = pix_depth;
+                        }
+                    } else {
+                        (*out)(y, i) = f.color;
+                    }
                 }
 
             }
