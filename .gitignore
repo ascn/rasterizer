@@ -4,3 +4,4 @@ rasterize
 *.ppm
 *.jpg
 *.png
+build/*
