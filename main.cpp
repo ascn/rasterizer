@@ -25,12 +25,37 @@ typedef struct {
     pixel_t color;
 } face_t;
 
+typedef enum { NONE, WHITE, NORM_FLAT, NORM_GOURAUD, NORM_BARY,
+               NORM_GOURAUD_Z, NORM_BARY_Z, RANDOM } e_shader;
+
 int main(int argc, char *argv[]) {
 
     const float EPSILON = 0.0001;
+    e_shader shading;
 
     if (argc < 6) {
-        fprintf(stderr, "usage: rasterize OBJ CAMERA WIDTH HEIGHT OUTPUT\n");
+        fprintf(stderr, "usage: rasterize OBJ CAMERA WIDTH HEIGHT OUTPUT OPTION\n");
+    } else if (argc > 7) {
+        fprintf(stderr, "usage: please specify only one shading option\n");
+    } else if (argc == 7) {
+        std::string option(argv[6]);
+        if (option == "--white") {
+            shading = WHITE;
+        } else if (option == "--norm_flat") {
+            shading = NORM_FLAT;
+        } else if (option == "--norm_gouraud") {
+            shading = NORM_GOURAUD;
+        } else if (option == "--norm_bary") {
+            shading = NORM_BARY;
+        } else if (option == "--norm_gouraud_z") {
+            shading = NORM_GOURAUD_Z;
+        } else if (option == "--norm_bary_z") {
+            shading = NORM_BARY_Z;
+        } else if (option == "--random") {
+            shading = RANDOM;
+        }
+    } else {
+        shading = NONE;
     }
 
     int w = std::stoi(argv[3]);
@@ -45,15 +70,12 @@ int main(int argc, char *argv[]) {
         z_buf.push_back(2);
     }
 
-    // get mtl filename
-    std::string obj_name(argv[1]);
-    std::string mtl_name = obj_name.substr(0, obj_name.find(".obj"));
-    mtl_name += ".mtl";
+    std::string mtl_path = "C:\Users\achan\Projects\cis560\rasterizer\rasterizer\obj";
 
     // LOAD OBJ
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
-    std::string err = tinyobj::LoadObj(shapes, materials, argv[1], mtl_name.c_str());
+    std::string err = tinyobj::LoadObj(shapes, materials, argv[1]);
     if ("" != err) {
     	cout << "error: " << err << endl;
     	exit(1);
@@ -97,6 +119,9 @@ int main(int argc, char *argv[]) {
             tmp.vert[2] = vec4(mesh.positions[mesh.indices[i + 2] * 3],
                                mesh.positions[mesh.indices[i + 2] * 3 + 1],
                                mesh.positions[mesh.indices[i + 2] * 3 + 2], 1);
+            tmp.color = { materials[mesh.material_ids[i / 3]].diffuse[0] * 255,
+                          materials[mesh.material_ids[i / 3]].diffuse[1] * 255,
+                          materials[mesh.material_ids[i / 3]].diffuse[2] * 255 };
             faces.push_back(tmp);
         }
     }
@@ -125,6 +150,9 @@ int main(int argc, char *argv[]) {
         if (f.pixel_coord[1][0] > f.pixel_coord[2][0]) {
             std::swap(f.pixel_coord[1], f.pixel_coord[2]);
         }
+        if (f.pixel_coord[0][0] > f.pixel_coord[1][0]) {
+            std::swap(f.pixel_coord[0], f.pixel_coord[1]);
+        }
         f.bounding_box[0][0] = min(f.pixel_coord[0][0],
                                min(f.pixel_coord[1][0], f.pixel_coord[2][0]));
         f.bounding_box[0][1] = min(f.pixel_coord[0][1],
@@ -137,7 +165,13 @@ int main(int argc, char *argv[]) {
                 f.bounding_box[1][0] < 0 || f.bounding_box[1][1] < 0) {
             f.is_renderable = false;
         }
-        f.color = { (float) std::rand() / RAND_MAX * 255, (float) std::rand() / RAND_MAX * 255, (float) std::rand() / RAND_MAX * 255 };
+        if (shading == RANDOM) {
+            f.color = { (float) std::rand() / RAND_MAX * 255,
+                        (float) std::rand() / RAND_MAX * 255,
+                        (float) std::rand() / RAND_MAX * 255 };
+        } else if (shading == NONE) {
+
+        }
     }
 
     // For each row in the output image
@@ -230,21 +264,32 @@ int main(int argc, char *argv[]) {
                 double y1 = f.pixel_coord[0][1];
                 double y2 = f.pixel_coord[1][1];
                 double y3 = f.pixel_coord[2][1];
-                for (int i = intersects[0]; i <= intersects[1]; ++i) {
+                for (int i = intersects[0]; i < intersects[1]; ++i) {
                     if (i < 0 || i > w) { continue; }
                     // Get barycentric coordinate of pixel
-                    if (true) {
-                        double x = i;
-                        double l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
-                        double l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
-                        double l2 = 1 - l1 - l2;
-                        double pix_depth = 1 / ((1 / (f.vert[0][2] * l0)) + (1 / (f.vert[1][2] * l1)) + (1 / (f.vert[2][2] * l2)));
-                        if (pix_depth <= z_buf[y * w + i]) {
+                    double x = i;
+                    double l0 = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+                    double l1 = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3));
+                    double l2 = 1 - l0 - l1;
+                    double pix_depth = (1 / f.vert[0][2]) * l0 + (1 / f.vert[1][2]) * l1 + (1 / f.vert[2][2]) * l2;
+                    pix_depth = 1 / pix_depth;
+                    if (pix_depth < z_buf[y * w + i] && within(pix_depth, 0, 1)) {
+                        switch (shading) {
+                        case NONE:
+
+                            (*out)(y, i) = { f.color.r * pix_depth,
+                                             f.color.g * pix_depth,
+                                             f.color.b * pix_depth };
+                            break;
+                        case WHITE:
+                            (*out)(y, i) = { 255, 255, 255 };
+                            break;
+                        case RANDOM:
                             (*out)(y, i) = f.color;
-                            z_buf[y * w + i] = pix_depth;
+                            break;
                         }
-                    } else {
-                        (*out)(y, i) = f.color;
+                        //(*out)(y, i) = f.color;
+                        z_buf[y * w + i] = pix_depth;
                     }
                 }
 
