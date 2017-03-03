@@ -14,6 +14,7 @@ using namespace std;
 
 bool within(float y, float c1, float c2);
 float lerp(float a, float b, float alpha);
+float dist2(vec4 p1, vec4 p2);
 
 typedef struct {
     vec4 vert[3];
@@ -81,25 +82,6 @@ int main(int argc, char *argv[]) {
     	cout << "error: " << err << endl;
     	exit(1);
     }
-
-//    shapes.clear();
-//    materials.clear();
-//    tinyobj::shape_t tmp;
-//    tinyobj::mesh_t tmp_mesh;
-//    tmp_mesh.positions.push_back(-.5);
-//    tmp_mesh.positions.push_back(-.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.positions.push_back(-.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.positions.push_back(.5);
-//    tmp_mesh.indices.push_back(0);
-//    tmp_mesh.indices.push_back(1);
-//    tmp_mesh.indices.push_back(2);
-//    tmp.mesh = tmp_mesh;
-//    shapes.push_back(tmp);
 
     // READ CAMERA.TXT
     camera_mat_t camera = load_camera(argv[2]);
@@ -255,7 +237,6 @@ int main(int argc, char *argv[]) {
                     edge_intersects.push_back(2);
                 }
 
-                std::sort(intersects.begin(), intersects.end());
                 if (intersects[0] > intersects[1]) {
                     std::swap(intersects[0], intersects[1]);
                     std::swap(edge_intersects[0], edge_intersects[2]);
@@ -284,9 +265,9 @@ int main(int argc, char *argv[]) {
                     if (pix_depth < z_buf[y * w + i] && within(pix_depth, 0, 1)) {
                         switch (shading) {
                         case NONE:
-                            (*out)(y, i) = { f.color.r * (1 / pix_depth),
-                                             f.color.g * (1 / pix_depth),
-                                             f.color.b * (1 / pix_depth) };
+                            (*out)(y, i) = { f.color.r,
+                                             f.color.g,
+                                             f.color.b };
                             break;
                         case WHITE:
                             (*out)(y, i) = { 255, 255, 255 };
@@ -312,30 +293,32 @@ int main(int argc, char *argv[]) {
                             c[2] = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
                                      (unsigned char) ((view_n_3[1] + 1) * 127.5),
                                      (unsigned char) ((view_n_3[2] + 1) * 127.5) };
-                            // find distance of y
-                            float d1 = f.pixel_coord[edge_intersects[1]][1] - f.pixel_coord[edge_intersects[0]][1];
-                            float d2 = f.pixel_coord[edge_intersects[3]][1] - f.pixel_coord[edge_intersects[2]][1];
+
+                            float d1 = dist2(f.pixel_coord[edge_intersects[1]], f.pixel_coord[edge_intersects[0]]);
+                            float d2 = dist2(f.pixel_coord[edge_intersects[3]], f.pixel_coord[edge_intersects[2]]);
+
                             float r1 = lerp(c[edge_intersects[0]].r,
-                                           c[edge_intersects[1]].r,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
+                                            c[edge_intersects[1]].r,
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
                             float g1 = lerp(c[edge_intersects[0]].g,
-                                           c[edge_intersects[1]].g,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
+                                            c[edge_intersects[1]].g,
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
                             float b1 = lerp(c[edge_intersects[0]].b,
-                                           c[edge_intersects[1]].b,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
+                                            c[edge_intersects[1]].b,
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
                             float r2 = lerp(c[edge_intersects[2]].r,
-                                           c[edge_intersects[3]].r,
-                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
+                                            c[edge_intersects[3]].r,
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
                             float g2 = lerp(c[edge_intersects[2]].g,
-                                           c[edge_intersects[3]].g,
-                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
+                                            c[edge_intersects[3]].g,
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
                             float b2 = lerp(c[edge_intersects[2]].b,
-                                           c[edge_intersects[3]].b,
-                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
-                            (*out)(y, i) = { (unsigned char) lerp(r1, r2, (intersects[1] - i) / (intersects[1] - intersects[0])),
-                                             (unsigned char) lerp(g1, g2, (intersects[1] - i) / (intersects[1] - intersects[0])),
-                                             (unsigned char) lerp(b1, b2, (intersects[1] - i) / (intersects[1] - intersects[0])) };
+                                            c[edge_intersects[3]].b,
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
+
+                            (*out)(y, i) = { (unsigned char) lerp(r1, r2, (i - intersects[0]) / (intersects[1] - intersects[0])),
+                                             (unsigned char) lerp(g1, g2, (i - intersects[0]) / (intersects[1] - intersects[0])),
+                                             (unsigned char) lerp(b1, b2, (i - intersects[0]) / (intersects[1] - intersects[0])) };
                             break;
                         }
                         case NORM_BARY: {
@@ -351,12 +334,14 @@ int main(int argc, char *argv[]) {
                             pixel_t c3 = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
                                            (unsigned char) ((view_n_3[1] + 1) * 127.5),
                                            (unsigned char) ((view_n_3[2] + 1) * 127.5) };
-                            (*out)(y, i) = { c1.r * l0 + c2.r * l1 + c3.r * l2, 
-                                             c1.g * l0 + c2.g * l1 + c3.g * l2,
-                                             c1.b * l0 + c2.b * l1 + c3.b * l2 };
+                            (*out)(y, i) = { (unsigned char) (c1.r * l0 + c2.r * l1 + c3.r * l2), 
+                                             (unsigned char) (c1.g * l0 + c2.g * l1 + c3.g * l2),
+                                             (unsigned char) (c1.b * l0 + c2.b * l1 + c3.b * l2) };
                             break;
                         }
                         case NORM_GOURAUD_Z:
+                            fprintf(stderr, "error: not implemented\n");
+                            break;
                         case NORM_BARY_Z: {
                             vec4 view_n_1 = camera.view * f.normals[0];
                             vec4 view_n_2 = camera.view * f.normals[1];
@@ -370,9 +355,9 @@ int main(int argc, char *argv[]) {
                             pixel_t c3 = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
                                            (unsigned char) ((view_n_3[1] + 1) * 127.5),
                                            (unsigned char) ((view_n_3[2] + 1) * 127.5) };
-                            (*out)(y, i) = { (unsigned char) 1 / (1.f / c1.r * l0 + 1.f / c2.r * l1 + 1.f / c3.r * l2),
-                                             (unsigned char) 1 / (1.f / c1.g * l0 + 1.f / c2.g * l1 + 1.f / c3.g * l2),
-                                             (unsigned char) 1 / (1.f / c1.b * l0 + 1.f / c2.b * l1 + 1.f / c3.b * l2) };
+                            (*out)(y, i) = { (unsigned char) (1 / (1.f / c1.r * l0 + 1.f / c2.r * l1 + 1.f / c3.r * l2)),
+                                             (unsigned char) (1 / (1.f / c1.g * l0 + 1.f / c2.g * l1 + 1.f / c3.g * l2)),
+                                             (unsigned char) (1 / (1.f / c1.b * l0 + 1.f / c2.b * l1 + 1.f / c3.b * l2)) };
                             break;
                         }
                         case RANDOM:
@@ -382,7 +367,6 @@ int main(int argc, char *argv[]) {
                             fprintf(stderr, "error: option not handled\n");
                             break;
                         }
-                        //(*out)(y, i) = f.color;
                         z_buf[y * w + i] = pix_depth;
                     }
                 }
@@ -403,4 +387,8 @@ bool within(float y, float c1, float c2) {
 
 float lerp(float a, float b, float alpha) {
     return a + alpha * (b - a);
+}
+
+float dist2(vec4 p1, vec4 p2) {
+    return std::sqrt(std::pow((p1[0] - p2[0]), 2) + std::pow((p1[1] - p2[1]), 2));
 }
