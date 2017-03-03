@@ -313,27 +313,29 @@ int main(int argc, char *argv[]) {
                                      (unsigned char) ((view_n_3[1] + 1) * 127.5),
                                      (unsigned char) ((view_n_3[2] + 1) * 127.5) };
                             // find distance of y
+                            float d1 = f.pixel_coord[edge_intersects[1]][1] - f.pixel_coord[edge_intersects[0]][1];
+                            float d2 = f.pixel_coord[edge_intersects[3]][1] - f.pixel_coord[edge_intersects[2]][1];
                             float r1 = lerp(c[edge_intersects[0]].r,
                                            c[edge_intersects[1]].r,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
+                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
                             float g1 = lerp(c[edge_intersects[0]].g,
                                            c[edge_intersects[1]].g,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
+                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
                             float b1 = lerp(c[edge_intersects[0]].b,
                                            c[edge_intersects[1]].b,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
+                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y) / d1);
                             float r2 = lerp(c[edge_intersects[2]].r,
                                            c[edge_intersects[3]].r,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
+                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
                             float g2 = lerp(c[edge_intersects[2]].g,
                                            c[edge_intersects[3]].g,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
+                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
                             float b2 = lerp(c[edge_intersects[2]].b,
                                            c[edge_intersects[3]].b,
-                                           std::abs(f.pixel_coord[edge_intersects[0]][1] - y));
-                            (*out)(y, i) = { (unsigned char) lerp(r1, r2, intersects[1] - i), 
-                                             (unsigned char) lerp(g1, g2, intersects[1] - i),
-                                             (unsigned char) lerp(b1, b2, intersects[1] - i) };
+                                           std::abs(f.pixel_coord[edge_intersects[3]][1] - y) / d2);
+                            (*out)(y, i) = { (unsigned char) lerp(r1, r2, (intersects[1] - i) / (intersects[1] - intersects[0])),
+                                             (unsigned char) lerp(g1, g2, (intersects[1] - i) / (intersects[1] - intersects[0])),
+                                             (unsigned char) lerp(b1, b2, (intersects[1] - i) / (intersects[1] - intersects[0])) };
                             break;
                         }
                         case NORM_BARY: {
@@ -355,7 +357,24 @@ int main(int argc, char *argv[]) {
                             break;
                         }
                         case NORM_GOURAUD_Z:
-                        case NORM_BARY_Z:
+                        case NORM_BARY_Z: {
+                            vec4 view_n_1 = camera.view * f.normals[0];
+                            vec4 view_n_2 = camera.view * f.normals[1];
+                            vec4 view_n_3 = camera.view * f.normals[2];
+                            pixel_t c1 = { (unsigned char) ((view_n_1[0] + 1) * 127.5),
+                                           (unsigned char) ((view_n_1[1] + 1) * 127.5),
+                                           (unsigned char) ((view_n_1[2] + 1) * 127.5) };
+                            pixel_t c2 = { (unsigned char) ((view_n_2[0] + 1) * 127.5),
+                                           (unsigned char) ((view_n_2[1] + 1) * 127.5),
+                                           (unsigned char) ((view_n_2[2] + 1) * 127.5) };
+                            pixel_t c3 = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
+                                           (unsigned char) ((view_n_3[1] + 1) * 127.5),
+                                           (unsigned char) ((view_n_3[2] + 1) * 127.5) };
+                            (*out)(y, i) = { (unsigned char) 1 / (1.f / c1.r * l0 + 1.f / c2.r * l1 + 1.f / c3.r * l2),
+                                             (unsigned char) 1 / (1.f / c1.g * l0 + 1.f / c2.g * l1 + 1.f / c3.g * l2),
+                                             (unsigned char) 1 / (1.f / c1.b * l0 + 1.f / c2.b * l1 + 1.f / c3.b * l2) };
+                            break;
+                        }
                         case RANDOM:
                             (*out)(y, i) = f.color;
                             break;
