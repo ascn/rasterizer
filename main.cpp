@@ -29,15 +29,16 @@ typedef struct {
 } face_t;
 
 typedef enum { NONE, WHITE, NORM_FLAT, NORM_GOURAUD, NORM_BARY,
-               NORM_GOURAUD_Z, NORM_BARY_Z, RANDOM } e_shader;
+               NORM_GOURAUD_Z, NORM_BARY_Z, RANDOM, TEXTURE } e_shader;
 
 int main(int argc, char *argv[]) {
 
     e_shader shading = NONE;
+    std::string text_path;
 
     if (argc < 6) {
         fprintf(stderr, "usage: rasterize OBJ CAMERA WIDTH HEIGHT OUTPUT OPTION\n");
-    } else if (argc > 7) {
+    } else if (argc > 8) {
         fprintf(stderr, "usage: please specify only one shading option\n");
     } else if (argc == 7) {
         std::string option(argv[6]);
@@ -55,6 +56,9 @@ int main(int argc, char *argv[]) {
             shading = NORM_BARY_Z;
         } else if (option == "--random") {
             shading = RANDOM;
+        } else if (option == "--texture") {
+            shading = TEXTURE;
+            text_path = argv[7];
         }
     } else {
         shading = NONE;
@@ -363,6 +367,8 @@ int main(int argc, char *argv[]) {
                         case RANDOM:
                             (*out)(y, i) = f.color;
                             break;
+                        case TEXTURE:
+
                         default:
                             fprintf(stderr, "error: option not handled\n");
                             break;
