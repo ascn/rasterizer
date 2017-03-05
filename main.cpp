@@ -177,7 +177,6 @@ int main(int argc, char *argv[]) {
     // For each row in the output image
     for (float y = 0.5; y < h; ++y) {
         // Determine which faces intersect the row
-        std::vector<float> intersections;
         for (auto &f : faces) {
             if (!f.is_renderable) { continue; }
             if (f.bounding_box[0][1] < y && y < f.bounding_box[1][1]) {
@@ -329,18 +328,13 @@ int main(int argc, char *argv[]) {
                             vec4 view_n_1 = camera.view * f.normals[0];
                             vec4 view_n_2 = camera.view * f.normals[1];
                             vec4 view_n_3 = camera.view * f.normals[2];
-                            pixel_t c1 = { (unsigned char) ((view_n_1[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_1[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_1[2] + 1) * 127.5) };
-                            pixel_t c2 = { (unsigned char) ((view_n_2[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_2[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_2[2] + 1) * 127.5) };
-                            pixel_t c3 = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_3[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_3[2] + 1) * 127.5) };
-                            (*out)(y, i) = { (unsigned char) (c1.r * l0 + c2.r * l1 + c3.r * l2), 
-                                             (unsigned char) (c1.g * l0 + c2.g * l1 + c3.g * l2),
-                                             (unsigned char) (c1.b * l0 + c2.b * l1 + c3.b * l2) };
+                            float r[3], g[3], b[3];
+                            r[0] = (view_n_1[0] + 1) * 127.5; r[1] = (view_n_2[0] + 1) * 127.5; r[2] = (view_n_3[0] + 1) * 127.5;
+                            g[0] = (view_n_1[1] + 1) * 127.5; g[1] = (view_n_2[1] + 1) * 127.5; g[2] = (view_n_3[1] + 1) * 127.5;
+                            b[0] = (view_n_1[2] + 1) * 127.5; b[1] = (view_n_2[2] + 1) * 127.5; b[2] = (view_n_3[2] + 1) * 127.5;
+                            (*out)(y, i) = { (unsigned char) (r[0] * l0 + r[1] * l1 + r[2] * l2), 
+                                             (unsigned char) (g[0] * l0 + g[1] * l1 + g[2] * l2),
+                                             (unsigned char) (b[0] * l0 + b[1] * l1 + b[2] * l2) };
                             break;
                         }
                         case NORM_GOURAUD_Z:
@@ -350,18 +344,22 @@ int main(int argc, char *argv[]) {
                             vec4 view_n_1 = camera.view * f.normals[0];
                             vec4 view_n_2 = camera.view * f.normals[1];
                             vec4 view_n_3 = camera.view * f.normals[2];
-                            pixel_t c1 = { (unsigned char) ((view_n_1[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_1[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_1[2] + 1) * 127.5) };
-                            pixel_t c2 = { (unsigned char) ((view_n_2[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_2[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_2[2] + 1) * 127.5) };
-                            pixel_t c3 = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
-                                           (unsigned char) ((view_n_3[1] + 1) * 127.5),
-                                           (unsigned char) ((view_n_3[2] + 1) * 127.5) };
-                            (*out)(y, i) = { (unsigned char) (1 / (1.f / c1.r * l0 + 1.f / c2.r * l1 + 1.f / c3.r * l2)),
-                                             (unsigned char) (1 / (1.f / c1.g * l0 + 1.f / c2.g * l1 + 1.f / c3.g * l2)),
-                                             (unsigned char) (1 / (1.f / c1.b * l0 + 1.f / c2.b * l1 + 1.f / c3.b * l2)) };
+                            float r[3], g[3], b[3];
+                            r[0] = (view_n_1[0] + 1) * 127.5; r[1] = (view_n_2[0] + 1) * 127.5; r[2] = (view_n_3[0] + 1) * 127.5;
+                            g[0] = (view_n_1[1] + 1) * 127.5; g[1] = (view_n_2[1] + 1) * 127.5; g[2] = (view_n_3[1] + 1) * 127.5;
+                            b[0] = (view_n_1[2] + 1) * 127.5; b[1] = (view_n_2[2] + 1) * 127.5; b[2] = (view_n_3[2] + 1) * 127.5;
+                            float r_o = (r[0] / f.vert[0][2]) * l0 +
+                                        (r[1] / f.vert[1][2]) * l1 + 
+                                        (r[2] / f.vert[2][2]) * l2;
+                            float g_o = (g[0] / f.vert[0][2]) * l0 +
+                                        (g[1] / f.vert[1][2]) * l1 + 
+                                        (g[2] / f.vert[2][2]) * l2;
+                            float b_o = (b[0] / f.vert[0][2]) * l0 +
+                                        (b[1] / f.vert[1][2]) * l1 + 
+                                        (b[2] / f.vert[2][2]) * l2;
+                            (*out)(y, i) = { (unsigned char) (r_o * pix_depth),
+                                             (unsigned char) (g_o * pix_depth),
+                                             (unsigned char) (b_o * pix_depth) };
                             break;
                         }
                         case RANDOM:
