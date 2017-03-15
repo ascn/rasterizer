@@ -299,25 +299,24 @@ int main(int argc, char *argv[]) {
 
                             float d1 = dist2(f.pixel_coord[edge_intersects[1]], f.pixel_coord[edge_intersects[0]]);
                             float d2 = dist2(f.pixel_coord[edge_intersects[3]], f.pixel_coord[edge_intersects[2]]);
-
                             float r1 = lerp(c[edge_intersects[0]].r,
                                             c[edge_intersects[1]].r,
-                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
                             float g1 = lerp(c[edge_intersects[0]].g,
                                             c[edge_intersects[1]].g,
-                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
                             float b1 = lerp(c[edge_intersects[0]].b,
                                             c[edge_intersects[1]].b,
-                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(i, y, 0, 0)) / d1);
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
                             float r2 = lerp(c[edge_intersects[2]].r,
                                             c[edge_intersects[3]].r,
-                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
                             float g2 = lerp(c[edge_intersects[2]].g,
                                             c[edge_intersects[3]].g,
-                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
                             float b2 = lerp(c[edge_intersects[2]].b,
                                             c[edge_intersects[3]].b,
-                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(i, y, 0, 0)) / d2);
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
 
                             (*out)(y, i) = { (unsigned char) lerp(r1, r2, (i - intersects[0]) / (intersects[1] - intersects[0])),
                                              (unsigned char) lerp(g1, g2, (i - intersects[0]) / (intersects[1] - intersects[0])),
@@ -337,9 +336,46 @@ int main(int argc, char *argv[]) {
                                              (unsigned char) (b[0] * l0 + b[1] * l1 + b[2] * l2) };
                             break;
                         }
-                        case NORM_GOURAUD_Z:
-                            fprintf(stderr, "error: not implemented\n");
+                        case NORM_GOURAUD_Z: {
+                            vec4 view_n_1 = camera.view * f.normals[0];
+                            vec4 view_n_2 = camera.view * f.normals[1];
+                            vec4 view_n_3 = camera.view * f.normals[2];
+                            pixel_t c[3];
+                            c[0] = { (unsigned char) ((view_n_1[0] + 1) * 127.5),
+                                     (unsigned char) ((view_n_1[1] + 1) * 127.5),
+                                     (unsigned char) ((view_n_1[2] + 1) * 127.5) };
+                            c[1] = { (unsigned char) ((view_n_2[0] + 1) * 127.5),
+                                     (unsigned char) ((view_n_2[1] + 1) * 127.5),
+                                     (unsigned char) ((view_n_2[2] + 1) * 127.5) };
+                            c[2] = { (unsigned char) ((view_n_3[0] + 1) * 127.5),
+                                     (unsigned char) ((view_n_3[1] + 1) * 127.5),
+                                     (unsigned char) ((view_n_3[2] + 1) * 127.5) };
+
+                            float r[3], g[3], b[3];
+                            r[0] = c[0].r / f.vert[0][2]; r[1] = c[1].r / f.vert[1][2]; r[2] = c[2].r / f.vert[2][2];
+                            g[0] = c[0].g / f.vert[0][2]; g[1] = c[1].g / f.vert[1][2]; g[2] = c[2].g / f.vert[2][2];
+                            b[0] = c[0].b / f.vert[0][2]; b[1] = c[1].b / f.vert[1][2]; b[2] = c[2].b / f.vert[2][2];
+
+                            float d1 = dist2(f.pixel_coord[edge_intersects[1]], f.pixel_coord[edge_intersects[0]]);
+                            float d2 = dist2(f.pixel_coord[edge_intersects[3]], f.pixel_coord[edge_intersects[2]]);
+                            float r1 = lerp(r[edge_intersects[0]], r[edge_intersects[1]],
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
+                            float g1 = lerp(g[edge_intersects[0]], g[edge_intersects[1]],
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
+                            float b1 = lerp(b[edge_intersects[0]], b[edge_intersects[1]],
+                                            dist2(f.pixel_coord[edge_intersects[0]], vec4(intersects[0], y, 0, 0)) / d1);
+                            float r2 = lerp(r[edge_intersects[2]], r[edge_intersects[3]],
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
+                            float g2 = lerp(g[edge_intersects[2]], g[edge_intersects[3]],
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
+                            float b2 = lerp(b[edge_intersects[2]], b[edge_intersects[3]],
+                                            dist2(f.pixel_coord[edge_intersects[2]], vec4(intersects[1], y, 0, 0)) / d2);
+
+                            (*out)(y, i) = { (unsigned char) (pix_depth * lerp(r1, r2, (i - intersects[0]) / (intersects[1] - intersects[0]))),
+                                             (unsigned char) (pix_depth * lerp(g1, g2, (i - intersects[0]) / (intersects[1] - intersects[0]))),
+                                             (unsigned char) (pix_depth * lerp(b1, b2, (i - intersects[0]) / (intersects[1] - intersects[0]))) };
                             break;
+                        }
                         case NORM_BARY_Z: {
                             vec4 view_n_1 = camera.view * f.normals[0];
                             vec4 view_n_2 = camera.view * f.normals[1];
