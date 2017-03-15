@@ -24,7 +24,7 @@ Default material | Random colors | Flat
 
 Gouraud | Gouraud with perspective correction
 :-----------:|:---------------:
-![Flat shading](https://raw.githubusercontent.com/ascn/rasterizer/master/img/wahoo_norm_gouraud.png) | ![Gouraud shading - not perfect](https://raw.githubusercontent.com/ascn/rasterizer/master/img/wahoo_norm_gouraud_z.png)
+![Gouraud shading](https://raw.githubusercontent.com/ascn/rasterizer/master/img/wahoo_norm_gouraud.png) | ![Gouraud with perspective correction](https://raw.githubusercontent.com/ascn/rasterizer/master/img/wahoo_norm_gouraud_z.png)
 
 Barycentric | Barycentric with perspective correction
 :-:|:-:
